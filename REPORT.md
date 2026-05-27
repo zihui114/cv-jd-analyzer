@@ -56,21 +56,52 @@ cv-jd-analyzer/
 
 ### 執行流程
 
-```
-使用者輸入（CV + JD）
-        ↓
-  jd_parser：將 JD 結構化為標準格式（公司、職位、要求清單）
-        ↓
-  ┌─────────────────────────────────────────┐
-  │  insight │ fit │ interview │ cover │ rewrite │
-  └─────────────────────────────────────────┘
-        ↓
-  各模組讀取 prompts/ 下的 prompt 模板，組合 CV + JD 資料後呼叫 LLM
-        ↓
-  輸出存到 data/output/YYYY-MM-DD/
-```
+```mermaid
+flowchart TD
+    CV[CV 檔案] --> Parser
+    JD[JD 檔案] --> Parser
 
-每個模組都是獨立的 agent，透過共用的 `llm.py` 呼叫同一個 LLM，輸入是 CV 文字 + 結構化 JD，輸出是 Markdown 格式的分析文件。
+    Parser["jd_parser\n將 JD 結構化\n（公司、職位、要求清單）"]
+
+    Parser --> Insight
+    Parser --> Fit
+    Parser --> Interview
+    Parser --> Cover
+    Parser --> Rewrite
+
+    subgraph Insight["insight 模組"]
+        I1[jd_insight]
+    end
+
+    subgraph Fit["fit 模組"]
+        F1[cv_matcher] --> F3[fit_analyzer]
+        F2[weakness_analyzer] --> F3
+    end
+
+    subgraph Interview["interview 模組"]
+        V1[cv_storyteller] --> V4[interview_all]
+        V2[question_predictor] --> V4
+        V3[interview_prep] --> V4
+    end
+
+    subgraph Cover["cover 模組"]
+        C1[cover_letter]
+    end
+
+    subgraph Rewrite["rewrite 模組"]
+        R1[intro_rewriter]
+    end
+
+    Insight --> LLM
+    Fit --> LLM
+    Interview --> LLM
+    Cover --> LLM
+    Rewrite --> LLM
+
+    LLM["llm.py\nGroq API\nllama-3.3-70b-versatile"]
+
+    LLM --> Output["data/output/YYYY-MM-DD/\n各模組輸出 .md 檔案"]
+```
 
 ---
 
