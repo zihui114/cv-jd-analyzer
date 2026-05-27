@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CV / JD Analyzer</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --text: #1e293b;
+      --muted: #64748b;
+      --success: #16a34a;
+      --tag-bg: #eff6ff;
+      --tag-text: #1d4ed8;
+      --radius: 10px;
+      --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+    }
+    header h1 { font-size: 1.25rem; font-weight: 700; }
+    header p { font-size: .85rem; color: var(--muted); margin-top: 2px; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 28px 24px 60px; }
+
+    /* Card */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: .8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* Two-column grid for CV + JD */
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 720px) { .input-grid { grid-template-columns: 1fr; } }
+
+    /* Tabs (for CV input switch) */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 14px;
+    }
+    .tab-btn {
+      padding: 6px 14px;
+      font-size: .85rem;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color .15s, border-color .15s;
+    }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Inputs */
+    textarea, input[type="file"] {
+      width: 100%;
+      font-family: inherit;
+      font-size: .9rem;
+      color: var(--text);
+    }
+    textarea {
+      resize: vertical;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      outline: none;
+      line-height: 1.6;
+      transition: border-color .15s;
+    }
+    textarea:focus { border-color: var(--primary); }
+
+    .upload-area {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 28px 20px;
+      text-align: center;
+      color: var(--muted);
+      font-size: .88rem;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      position: relative;
+    }
+    .upload-area:hover { border-color: var(--primary); background: var(--tag-bg); }
+    .upload-area input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+    .upload-area .upload-icon { font-size: 1.8rem; margin-bottom: 6px; }
+    #file-name { margin-top: 8px; font-size: .82rem; color: var(--primary); font-weight: 500; min-height: 1.2em; }
+
+    /* Module checkboxes */
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+    }
+    .module-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      user-select: none;
+    }
+    .module-item:hover { border-color: var(--primary); background: var(--tag-bg); }
+    .module-item input[type="checkbox"] { margin-top: 2px; accent-color: var(--primary); flex-shrink: 0; }
+    .module-item label { cursor: pointer; }
+    .module-item label .mod-name { font-size: .9rem; font-weight: 600; display: block; }
+    .module-item label .mod-desc { font-size: .78rem; color: var(--muted); margin-top: 2px; display: block; }
+
+    .toggle-all {
+      font-size: .82rem;
+      color: var(--primary);
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      margin-bottom: 12px;
+      text-decoration: underline;
+    }
+
+    /* Intro textarea (conditional) */
+    #intro-section {
+      display: none;
+      margin-top: 20px;
+    }
+
+    /* Submit */
+    .submit-bar { display: flex; align-items: center; gap: 16px; margin-top: 6px; }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 12px 32px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+    #error-msg { color: #dc2626; font-size: .9rem; }
+
+    /* Loading */
+    #loading {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Results */
+    #results { display: none; }
+
+    .result-header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .result-header h2 { font-size: 1.1rem; }
+    .result-meta { font-size: .85rem; color: var(--muted); }
+
+    .result-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .result-tab {
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: .85rem;
+      border: 1px solid var(--border);
+      background: var(--card);
+      cursor: pointer;
+      transition: background .15s, color .15s, border-color .15s;
+      font-weight: 500;
+    }
+    .result-tab.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    .result-panel { display: none; }
+    .result-panel.active { display: block; }
+
+    .result-content {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 28px 32px;
+      position: relative;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 16px; right: 16px;
+      padding: 5px 12px;
+      font-size: .78rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--card);
+      cursor: pointer;
+      color: var(--muted);
+      transition: background .15s, color .15s;
+    }
+    .copy-btn:hover { background: var(--bg); color: var(--text); }
+    .copy-btn.copied { color: var(--success); border-color: var(--success); }
+
+    /* Markdown styles */
+    .md-body { line-height: 1.7; font-size: .95rem; }
+    .md-body h1, .md-body h2 { font-size: 1.1rem; font-weight: 700; margin: 1.4em 0 .5em; border-bottom: 1px solid var(--border); padding-bottom: .3em; }
+    .md-body h1:first-child, .md-body h2:first-child { margin-top: 0; }
+    .md-body h3 { font-size: 1rem; font-weight: 600; margin: 1.2em 0 .4em; }
+    .md-body p { margin: .6em 0; }
+    .md-body ul, .md-body ol { padding-left: 1.4em; margin: .5em 0; }
+    .md-body li { margin: .3em 0; }
+    .md-body blockquote {
+      border-left: 3px solid var(--primary);
+      padding: .4em .8em .4em 1em;
+      margin: .8em 0;
+      background: var(--tag-bg);
+      border-radius: 0 6px 6px 0;
+      color: var(--text);
+    }
+    .md-body strong { font-weight: 700; }
+    .md-body code {
+      background: #f1f5f9;
+      padding: .1em .35em;
+      border-radius: 4px;
+      font-size: .88em;
+      font-family: "SF Mono", "Fira Code", monospace;
+    }
+    .md-body hr { border: none; border-top: 1px solid var(--border); margin: 1.2em 0; }
+    .md-body a { color: var(--primary); }
+    .md-body table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .88rem;
+      margin: .8em 0;
+    }
+    .md-body th {
+      background: var(--bg);
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .md-body td {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      vertical-align: top;
+      line-height: 1.5;
+    }
+    .md-body tr:nth-child(even) td { background: #fafbfc; }
+    /* 狀態 badge */
+    .md-body td:last-child { white-space: nowrap; font-weight: 500; }
+    .md-body td:last-child:has-text { }
+
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>CV / JD Analyzer</h1>
+  <p>輸入你的履歷與職缺描述，選擇分析模組，獲得 AI 求職建議</p>
+</header>
+
+<div class="container">
+
+  <!-- Input row -->
+  <div class="input-grid">
+
+    <!-- CV card -->
+    <div class="card">
+      <div class="card-title">履歷 CV</div>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="cv-text">貼上文字</button>
+        <button class="tab-btn" data-tab="cv-upload">上傳 PDF</button>
+      </div>
+      <div id="cv-text" class="tab-panel active">
+        <textarea id="cv-textarea" name="cv_text" rows="12" placeholder="將你的履歷內容貼在這裡（純文字或 Markdown 均可）..."></textarea>
+      </div>
+      <div id="cv-upload" class="tab-panel">
+        <div class="upload-area">
+          <div class="upload-icon">📄</div>
+          <div>點擊或拖曳上傳 PDF</div>
+          <div style="font-size:.78rem;margin-top:4px;">支援 .pdf / .txt / .md</div>
+          <input type="file" id="cv-file-input" accept=".pdf,.txt,.md" />
+        </div>
+        <div id="file-name"></div>
+      </div>
+    </div>
+
+    <!-- JD card -->
+    <div class="card">
+      <div class="card-title">職缺描述 JD</div>
+      <textarea id="jd-textarea" name="jd_text" rows="14" placeholder="將職缺描述（Job Description）貼在這裡，可以是原文複製..."></textarea>
+    </div>
+
+  </div>
+
+  <!-- Module selection -->
+  <div class="card">
+    <div class="card-title">選擇分析模組</div>
+    <button class="toggle-all" id="toggle-all-btn" type="button">全選 / 取消全選</button>
+    <div class="module-grid">
+      <label class="module-item">
+        <input type="checkbox" name="modules" value="insight" checked />
+        <span>
+          <span class="mod-name">JD 深度解讀</span>
+          <span class="mod-desc">看穿職缺真正在找什麼人</span>
+        </span>
+      </label>
+      <label class="module-item">
+        <input type="checkbox" name="modules" value="fit" checked />
+        <span>
+          <span class="mod-name">匹配 &amp; 弱項</span>
+          <span class="mod-desc">符合度對照 + 落差補強建議</span>
+        </span>
+      </label>
+      <label class="module-item">
+        <input type="checkbox" name="modules" value="interview" checked />
+        <span>
+          <span class="mod-name">面試全準備</span>
+          <span class="mod-desc">STAR 故事 + 預測問題 + 技術題</span>
+        </span>
+      </label>
+      <label class="module-item">
+        <input type="checkbox" name="modules" value="cover" />
+        <span>
+          <span class="mod-name">Cover Letter</span>
+          <span class="mod-desc">生成應徵信草稿</span>
+        </span>
+      </label>
+      <label class="module-item">
+        <input type="checkbox" name="modules" value="rewrite" id="rewrite-checkbox" />
+        <span>
+          <span class="mod-name">自我介紹改寫</span>
+          <span class="mod-desc">讓面試官想追問的版本</span>
+        </span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Intro section (shows only when rewrite is checked) -->
+  <div class="card" id="intro-section">
+    <div class="card-title">目前的自我介紹</div>
+    <textarea id="intro-textarea" rows="8" placeholder="把你目前準備的自我介紹貼在這裡..."></textarea>
+  </div>
+
+  <!-- Submit -->
+  <div class="submit-bar">
+    <button class="btn-primary" id="submit-btn" type="button">開始分析</button>
+    <div id="loading">
+      <div class="spinner"></div>
+      <span>AI 分析中，請稍候...</span>
+    </div>
+    <span id="error-msg"></span>
+  </div>
+
+  <!-- Results -->
+  <div id="results" style="margin-top:36px;">
+    <div class="result-header">
+      <h2 id="result-title">分析結果</h2>
+      <span class="result-meta" id="result-meta"></span>
+    </div>
+    <div class="result-tabs" id="result-tabs"></div>
+    <div id="result-panels"></div>
+  </div>
+
+</div>
+
+<script>
+  const MODULE_LABELS = {
+    insight:   "JD 深度解讀",
+    fit:       "匹配 & 弱項",
+    interview: "面試全準備",
+    cover:     "Cover Letter",
+    rewrite:   "自我介紹改寫",
+  };
+
+  function colorizeStatus(el) {
+    const STATUS = {
+      "符合":   { bg: "#dcfce7", color: "#16a34a" },
+      "部分符合": { bg: "#fef9c3", color: "#ca8a04" },
+      "缺乏":   { bg: "#fee2e2", color: "#dc2626" },
+      "高":     { bg: "#fee2e2", color: "#dc2626" },
+      "中":     { bg: "#fef9c3", color: "#ca8a04" },
+      "低":     { bg: "#dcfce7", color: "#16a34a" },
+    };
+    el.querySelectorAll("td").forEach(td => {
+      const text = td.textContent.trim();
+      const style = STATUS[text];
+      if (style) {
+        td.innerHTML = `<span style="
+          background:${style.bg};color:${style.color};
+          padding:2px 10px;border-radius:12px;font-size:.8rem;font-weight:600;
+        ">${text}</span>`;
+      }
+    });
+  }
+
+  // CV tabs
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById(btn.dataset.tab).classList.add("active");
+    });
+  });
+
+  // File upload label
+  document.getElementById("cv-file-input").addEventListener("change", e => {
+    const f = e.target.files[0];
+    document.getElementById("file-name").textContent = f ? f.name : "";
+  });
+
+  // Toggle all modules
+  document.getElementById("toggle-all-btn").addEventListener("click", () => {
+    const boxes = document.querySelectorAll('input[name="modules"]');
+    const allChecked = [...boxes].every(b => b.checked);
+    boxes.forEach(b => { b.checked = !allChecked; b.dispatchEvent(new Event("change")); });
+  });
+
+  // Show/hide intro section
+  document.getElementById("rewrite-checkbox").addEventListener("change", e => {
+    document.getElementById("intro-section").style.display = e.target.checked ? "block" : "none";
+  });
+
+  // Submit
+  document.getElementById("submit-btn").addEventListener("click", async () => {
+    const errorEl = document.getElementById("error-msg");
+    errorEl.textContent = "";
+
+    const fd = new FormData();
+
+    // CV
+    const activeTab = document.querySelector(".tab-btn.active").dataset.tab;
+    if (activeTab === "cv-upload") {
+      const file = document.getElementById("cv-file-input").files[0];
+      if (file) fd.append("cv_file", file);
+    } else {
+      fd.append("cv_text", document.getElementById("cv-textarea").value);
+    }
+
+    fd.append("jd_text", document.getElementById("jd-textarea").value);
+
+    document.querySelectorAll('input[name="modules"]:checked').forEach(cb => {
+      fd.append("modules", cb.value);
+    });
+
+    fd.append("intro_text", document.getElementById("intro-textarea").value);
+
+    // UI: loading state
+    document.getElementById("submit-btn").disabled = true;
+    document.getElementById("loading").style.display = "flex";
+    document.getElementById("results").style.display = "none";
+
+    try {
+      const res = await fetch("/analyze", { method: "POST", body: fd });
+      const data = await res.json();
+
+      if (data.error) {
+        errorEl.textContent = data.error;
+        return;
+      }
+
+      renderResults(data);
+    } catch (err) {
+      errorEl.textContent = "連線錯誤，請確認伺服器正在運行。";
+    } finally {
+      document.getElementById("submit-btn").disabled = false;
+      document.getElementById("loading").style.display = "none";
+    }
+  });
+
+  function renderResults(data) {
+    document.getElementById("result-title").textContent = "分析結果";
+    document.getElementById("result-meta").textContent =
+      data.company && data.position ? `${data.company} · ${data.position}` : "";
+
+    const tabsEl = document.getElementById("result-tabs");
+    const panelsEl = document.getElementById("result-panels");
+    tabsEl.innerHTML = "";
+    panelsEl.innerHTML = "";
+
+    const keys = Object.keys(data.results);
+    keys.forEach((key, i) => {
+      // Tab button
+      const tab = document.createElement("button");
+      tab.className = "result-tab" + (i === 0 ? " active" : "");
+      tab.textContent = MODULE_LABELS[key] || key;
+      tab.dataset.target = "panel-" + key;
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".result-tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".result-panel").forEach(p => p.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById("panel-" + key).classList.add("active");
+      });
+      tabsEl.appendChild(tab);
+
+      // Panel
+      const panel = document.createElement("div");
+      panel.id = "panel-" + key;
+      panel.className = "result-panel" + (i === 0 ? " active" : "");
+
+      const content = document.createElement("div");
+      content.className = "result-content";
+
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "copy-btn";
+      copyBtn.textContent = "複製";
+      const rawText = data.results[key];
+      copyBtn.addEventListener("click", () => {
+        navigator.clipboard.writeText(rawText).then(() => {
+          copyBtn.textContent = "已複製";
+          copyBtn.classList.add("copied");
+          setTimeout(() => { copyBtn.textContent = "複製"; copyBtn.classList.remove("copied"); }, 2000);
+        });
+      });
+      content.appendChild(copyBtn);
+
+      const md = document.createElement("div");
+      md.className = "md-body";
+      md.innerHTML = marked.parse(rawText);
+      colorizeStatus(md);
+      content.appendChild(md);
+
+      panel.appendChild(content);
+      panelsEl.appendChild(panel);
+    });
+
+    document.getElementById("results").style.display = "block";
+    document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+</script>
+</body>
+</html>

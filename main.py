@@ -5,9 +5,9 @@ import sys
 from pathlib import Path
 
 from src.file_manager import read_file, save_output
-from src.agents import jd_parser, cv_matcher, cover_letter, interview_prep, weakness_analyzer
+from src.agents import jd_parser, jd_insight, fit_analyzer, interview_all, cover_letter, intro_rewriter
 
-MODULES = ["all", "match", "cover", "interview", "weakness"]
+MODULES = ["all", "insight", "fit", "interview", "cover", "rewrite"]
 
 
 def extract_meta(jd_parsed: str) -> tuple[str, str]:
@@ -19,7 +19,7 @@ def extract_meta(jd_parsed: str) -> tuple[str, str]:
     )
 
 
-def run(cv_path: str, jd_path: str, mode: str):
+def run(cv_path: str, jd_path: str, mode: str, intro_path: str | None = None):
     print(f"讀取 CV：{cv_path}")
     cv = read_file(cv_path)
 
@@ -31,32 +31,39 @@ def run(cv_path: str, jd_path: str, mode: str):
     company, position = extract_meta(jd_parsed)
     print(f"  → {company} / {position}")
 
-    results = {}
-
-    if mode in ("all", "match", "weakness"):
-        print("執行匹配度分析...")
-        results["match"] = cv_matcher.analyze(cv, jd_parsed, company, position)
-        path = save_output(results["match"], company, position, "match_analysis")
+    if mode in ("all", "insight"):
+        print("執行 JD 深度解讀...")
+        result = jd_insight.analyze(jd_parsed)
+        path = save_output(result, company, position, "insight")
         print(f"  → 已存到 {path}")
 
-    if mode in ("all", "weakness"):
-        print("執行弱項診斷...")
-        results["weakness"] = weakness_analyzer.analyze(
-            cv, jd_parsed, results["match"], company, position
-        )
-        path = save_output(results["weakness"], company, position, "weakness_analysis")
+    if mode in ("all", "fit"):
+        print("執行匹配度與弱項分析...")
+        result = fit_analyzer.analyze(cv, jd_parsed, company, position)
+        path = save_output(result, company, position, "fit")
+        print(f"  → 已存到 {path}")
+
+    if mode in ("all", "interview"):
+        print("執行面試全準備...")
+        result = interview_all.generate(cv, jd_parsed, company, position)
+        path = save_output(result, company, position, "interview")
         print(f"  → 已存到 {path}")
 
     if mode in ("all", "cover"):
         print("生成 Cover Letter...")
-        results["cover"] = cover_letter.generate(cv, jd_parsed, company, position)
-        path = save_output(results["cover"], company, position, "cover_letter")
+        result = cover_letter.generate(cv, jd_parsed, company, position)
+        path = save_output(result, company, position, "cover")
         print(f"  → 已存到 {path}")
 
-    if mode in ("all", "interview"):
-        print("預測面試題...")
-        results["interview"] = interview_prep.generate(cv, jd_parsed, company, position)
-        path = save_output(results["interview"], company, position, "interview_prep")
+    if mode == "rewrite":
+        if not intro_path:
+            print("錯誤：--mode rewrite 需要提供 --intro 自我介紹檔案路徑", file=sys.stderr)
+            sys.exit(1)
+        print(f"讀取自我介紹：{intro_path}")
+        intro = read_file(intro_path)
+        print("改寫自我介紹...")
+        result = intro_rewriter.rewrite(intro, cv, jd_parsed)
+        path = save_output(result, company, position, "rewrite")
         print(f"  → 已存到 {path}")
 
     print("\n完成。")
@@ -72,8 +79,9 @@ def main():
         "--mode",
         default="all",
         choices=MODULES,
-        help="執行模組：all / match / cover / interview / weakness（預設：all）",
+        help="執行模組：all / insight / fit / interview / cover / rewrite（預設：all）",
     )
+    parser.add_argument("--intro", default=None, help="自我介紹檔案路徑（--mode rewrite 時必填）")
     args = parser.parse_args()
 
     cv_path = Path(args.cv).expanduser()
@@ -86,7 +94,15 @@ def main():
         print(f"錯誤：找不到 JD 檔案：{jd_path}", file=sys.stderr)
         sys.exit(1)
 
-    run(str(cv_path), str(jd_path), args.mode)
+    intro_path = None
+    if args.intro:
+        intro_path = Path(args.intro).expanduser()
+        if not intro_path.exists():
+            print(f"錯誤：找不到自我介紹檔案：{intro_path}", file=sys.stderr)
+            sys.exit(1)
+        intro_path = str(intro_path)
+
+    run(str(cv_path), str(jd_path), args.mode, intro_path)
 
 
 if __name__ == "__main__":
